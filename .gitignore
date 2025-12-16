@@ -11,6 +11,7 @@
 *.map
 *.lst
 *.o
+*.d
 *.obj
 *.crf
 *.lnp
