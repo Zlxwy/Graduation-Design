@@ -23,6 +23,11 @@
 *.uvopt.bak
 *.uvprojx.bak
 *.bak*
+*.uvguix.*
+Code/SCB_STM32F407ZGT6/overall_project/MDK-ARM/*
+!Code/SCB_STM32F407ZGT6/overall_project/MDK-ARM/*.uvoptx
+!Code/SCB_STM32F407ZGT6/overall_project/MDK-ARM/*.uvprojx
+!Code/SCB_STM32F407ZGT6/overall_project/MDK-ARM/*.s
 
 # Keil配置备份/临时文件
 *.uvoptx         # 如需多人协作共享调试配置，可注释此行（建议忽略，各自保留本地配置）
