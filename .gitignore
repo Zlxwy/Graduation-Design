@@ -4,7 +4,6 @@
 *.bak
 
 # Keil MDK 专属忽略
-# 编译产物
 *.axf
 *.hex
 *.elf
@@ -27,11 +26,6 @@ Code/SCB_STM32F407ZGT6/MDK-ARM/*
 !Code/SCB_STM32F407ZGT6/MDK-ARM/*.uvoptx
 !Code/SCB_STM32F407ZGT6/MDK-ARM/*.uvprojx
 !Code/SCB_STM32F407ZGT6/MDK-ARM/*.s
-
-# Keil配置备份/临时文件
-*.uvoptx         # 如需多人协作共享调试配置，可注释此行（建议忽略，各自保留本地配置）
-*.uvguix.*       # Keil用户界面配置（窗口布局、断点等，纯本地）
-*.uvgui.*        # 旧版Keil用户配置
 
 #  STM32CubeMX 专属忽略
 # CubeMX自动生成的工程文件（核心配置保留，生成文件忽略）
