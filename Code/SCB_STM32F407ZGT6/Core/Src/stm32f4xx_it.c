@@ -169,7 +169,6 @@ void USART3_IRQHandler(void)
 {
   /* USER CODE BEGIN USART3_IRQn 0 */
   UartStream_FuncCalled_InUartRecvInterrupt(&gMainCmnctStream);
-  HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin);
   return;
   /* USER CODE END USART3_IRQn 0 */
   HAL_UART_IRQHandler(&huart3);
