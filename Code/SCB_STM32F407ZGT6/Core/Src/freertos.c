@@ -84,15 +84,28 @@ const osThreadAttr_t BlinkLED1Task_attributes = {
   .stack_size = sizeof(BlinkLED1TaskBuffer),
   .priority = (osPriority_t) osPriorityNormal,
 };
+/* Definitions for UartTestTask */
+osThreadId_t UartTestTaskHandle;
+uint32_t UartTestTaskBuffer[ 128 ];
+osStaticThreadDef_t UartTestTaskControlBlock;
+const osThreadAttr_t UartTestTask_attributes = {
+  .name = "UartTestTask",
+  .cb_mem = &UartTestTaskControlBlock,
+  .cb_size = sizeof(UartTestTaskControlBlock),
+  .stack_mem = &UartTestTaskBuffer[0],
+  .stack_size = sizeof(UartTestTaskBuffer),
+  .priority = (osPriority_t) osPriorityNormal,
+};
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
 
 /* USER CODE END FunctionPrototypes */
 
-void StartDefaultTask(void *argument);
+void MainCmnctTaskFunc(void *argument);
 void BlinkLED0TaskFunc(void *argument);
 void BlinkLED1TaskFunc(void *argument);
+void UartTestTaskFunc(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -124,13 +137,16 @@ void MX_FREERTOS_Init(void) {
 
   /* Create the thread(s) */
   /* creation of defaultTask */
-  defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
+  defaultTaskHandle = osThreadNew(MainCmnctTaskFunc, NULL, &defaultTask_attributes);
 
   /* creation of BlinkLED0Task */
   BlinkLED0TaskHandle = osThreadNew(BlinkLED0TaskFunc, NULL, &BlinkLED0Task_attributes);
 
   /* creation of BlinkLED1Task */
   BlinkLED1TaskHandle = osThreadNew(BlinkLED1TaskFunc, NULL, &BlinkLED1Task_attributes);
+
+  /* creation of UartTestTask */
+  UartTestTaskHandle = osThreadNew(UartTestTaskFunc, NULL, &UartTestTask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -142,22 +158,22 @@ void MX_FREERTOS_Init(void) {
 
 }
 
-/* USER CODE BEGIN Header_StartDefaultTask */
+/* USER CODE BEGIN Header_MainCmnctTaskFunc */
 /**
   * @brief  Function implementing the defaultTask thread.
   * @param  argument: Not used
   * @retval None
   */
-/* USER CODE END Header_StartDefaultTask */
-__weak void StartDefaultTask(void *argument)
+/* USER CODE END Header_MainCmnctTaskFunc */
+__weak void MainCmnctTaskFunc(void *argument)
 {
-  /* USER CODE BEGIN StartDefaultTask */
+  /* USER CODE BEGIN MainCmnctTaskFunc */
   /* Infinite loop */
   for(;;)
   {
     osDelay(1);
   }
-  /* USER CODE END StartDefaultTask */
+  /* USER CODE END MainCmnctTaskFunc */
 }
 
 /* USER CODE BEGIN Header_BlinkLED0TaskFunc */
@@ -194,6 +210,24 @@ __weak void BlinkLED1TaskFunc(void *argument)
     osDelay(1);
   }
   /* USER CODE END BlinkLED1TaskFunc */
+}
+
+/* USER CODE BEGIN Header_UartTestTaskFunc */
+/**
+* @brief Function implementing the UartTestTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_UartTestTaskFunc */
+__weak void UartTestTaskFunc(void *argument)
+{
+  /* USER CODE BEGIN UartTestTaskFunc */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END UartTestTaskFunc */
 }
 
 /* Private application code --------------------------------------------------*/
