@@ -37,21 +37,13 @@ static const uint16_t crc16_table[256] = {
   0x6E17, 0x7E36, 0x4E55, 0x5E74, 0x2E93, 0x3EB2, 0x0ED1, 0x1EF0
 };
 
-uint8_t myArray[] = {
-  0x53, 0xCA, // 请求帧帧头
-//   0x53, 0x35, // 响应帧帧头
-//   0x53, 0x96, // 事件帧帧头
-  0x00, 0x00, 0x00, 0x05, // 帧长度
-  0x67, 0x68, 0x6A, 0x6D, 0x6F, // 数据
-};
-
 /**
  * @brief 计算 CRC-16 (CCITT-FALSE) 校验值
  * @param data: 字节串起始地址
  * @param len:  字节串长度（字节数）
  * @return CRC-16 校验值（16位）
  */
-uint16_t UartStream_CRC16Cal(uint8_t *bytes, uint32_t len) {
+uint16_t UartStream_CRC16Cal(const uint8_t *bytes, uint32_t len) {
   uint16_t crc = 0xFFFF;  // 初始值为 0xFFFF
   for (uint32_t i=0; i<len; i++) {
     uint8_t index = (crc >> 8) ^ bytes[i]; // 高8位与当前字节异或，得到查表索引
@@ -59,6 +51,14 @@ uint16_t UartStream_CRC16Cal(uint8_t *bytes, uint32_t len) {
   }
   return crc;
 }
+
+const uint8_t myArray[] = {
+  0x53, 0xCA, // 请求帧帧头
+//   0x53, 0x35, // 响应帧帧头
+//   0x53, 0x96, // 事件帧帧头
+  0x00, 0x00, 0x00, 0x06, // 帧长度
+  0x67, 0x68, 0x6A, 0x6D, 0x6F, 0x11 // 数据
+};
 
 int main(void) {
   uint16_t crc = UartStream_CRC16Cal(myArray, sizeof(myArray));

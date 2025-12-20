@@ -38,8 +38,8 @@ static const uint16_t crc16_table[256] = {
 
 /**
  * @brief 计算 CRC-16 (CCITT-FALSE) 校验值
- * @param data: 字节串起始地址
- * @param len:  字节串长度（字节数）
+ * @param data 字节串起始地址
+ * @param len  字节串长度（字节数）
  * @return CRC-16 校验值（16位）
  */
 uint16_t UartStream_CRC16Cal(const uint8_t *bytes, uint32_t len) {
@@ -53,9 +53,9 @@ uint16_t UartStream_CRC16Cal(const uint8_t *bytes, uint32_t len) {
 
 /**
  * @brief  初始化UartStream对象
- * @param  cThis: UartStream对象指针
- * @param  huart: UART_HandleTypeDef指针
- * @retval None
+ * @param  cThis UartStream对象指针
+ * @param  huart UART_HandleTypeDef指针
+ * @return None
  */
 void UartStream_Init(UartStream_t *cThis, UART_HandleTypeDef *huart) {
   /*初始化实例对象*/
@@ -70,8 +70,8 @@ void UartStream_Init(UartStream_t *cThis, UART_HandleTypeDef *huart) {
 
 /**
  * @brief  在UART接收中断中调用的函数，用于处理接收到的字节。
- * @param  cThis: UartStream对象指针
- * @retval None
+ * @param  cThis UartStream对象指针
+ * @return None
  */
 void UartStream_FuncCalled_InUartRecvInterrupt(UartStream_t *cThis) {
   if ( __HAL_UART_GET_FLAG(cThis->huart, UART_FLAG_RXNE) ) { // 确实是RXNE中断触发
@@ -85,20 +85,22 @@ void UartStream_FuncCalled_InUartRecvInterrupt(UartStream_t *cThis) {
 
 /**
  * @brief  从UartStream对象中读取数据
- * @param  cThis: UartStream对象指针
- * @param  FrameData: 接收一帧数据的指针
- * @param  RecvSizeMax: 接收的最大长度
- * @param  Timeout: 超时时间
- * @return true 成功读取一帧数据，false 超时未读取到数据
+ * @param  cThis UartStream对象指针
+ * @param  FrameData 接收一帧数据的指针
+ * @param  RecvSizeMax 接收的最大长度
+ * @param  Timeout 超时时间
+ * @return UartStream_ReadState_e枚举类型
+ *   @arg UartStream_ReadState_None 一点儿数据都没读到，超时了（已设置）
+ *   @arg UartStream_ReadState_CrcErr 完整读到了数据，但CRC校验错误（已设置）
+ *   @arg UartStream_ReadState_Timeout 读了一部分数据，但中途超时退出了（已设置）
+ *   @arg UartStream_ReadState_Successful 完整读到了数据，CRC校验也通过了（已设置）
  */
-#define WAIT_FRAME_HEAD_1  1 // 等待帧头1
-#define WAIT_FRAME_HEAD_2  2 // 等待帧头2
-#define WAIT_PAYLOAD_LEN   3 // 等待数据长度
-#define WAIT_PAYLOAD_DATA  4 // 等待数据
-#define WAIT_CRC_CHECKSUM  5 // 等待校验和
-UartStream_ReadStatus_e UartStream_Read(UartStream_t *cThis, uint8_t *FrameData, uint32_t Timeout) {
-  uint8_t state = WAIT_FRAME_HEAD_1;
-  UartStream_ReadStatus_e ReadStatus = UartStream_ReadStatus_None;
+UartStream_ReadState_e UartStream_Read(UartStream_t *cThis, uint8_t *FrameData, uint32_t Timeout) {
+  UartStream_ParseState_e state = UartStream_ParseState_WaitFrameHead1;
+  UartStream_ReadState_e ReadState = UartStream_ReadState_None;
+  bool HasEverFoundData = false; // 是否曾经找到过数据
+                                 // - 如果没找到过数据就直接退出了的话，返回的是UartStream_ReadState_None
+                                 // - 如果找到过数据但中途超时退出了，返回的是UartStream_ReadState_Timeout
   bool ShouldBreakTheInfiniteLoop = false;
 
   uint8_t tempHead1 = 0; // 用来暂存帧头1
@@ -110,46 +112,48 @@ UartStream_ReadStatus_e UartStream_Read(UartStream_t *cThis, uint8_t *FrameData,
   uint32_t DataCnt = 0; // 数据接收计数器，最大值不确定
   uint8_t CrcCnt = 0; // 校验和接收计数器，最大为2
 
-  uint32_t TimeMark;
+  uint32_t TimeMark; // 记录时间戳的变量
 
-  while (1) { // 是要依次往下读取的，设置为死循环，通过return退出
+  while (1) { // 是要依次往下读取的，设置为死循环，通过return和break退出
+    /*检测接收缓冲区的读指针和接收指针是否重合，如果重合则表示无数据可读*/
     TimeMark = HAL_GetTick(); // 获取当前时间，作为起始
     while (cThis->ReadPtr == cThis->RecvPtr) { // 当接收指针与读取指针相等时，则无数据可读
-      if (HAL_GetTick()-TimeMark >= Timeout) {
-        ReadStatus = UartStream_ReadStatus_Timeout; // 超时未读取到数据
-        return ReadStatus; // 受不了这气，直接return超时读取
+      if (HAL_GetTick()-TimeMark >= Timeout) { // 超时没检测到数据可读
+        /*如果之前曾经找到过数据，则表示中途超时，否则表示超时读取*/
+        ReadState = HasEverFoundData ? UartStream_ReadState_Timeout : UartStream_ReadState_None;
+        return ReadState; // 受不了这气，直接return超时读取，跳出无限循环
       }
-    } // 执行到这里了，表示有数据可读
+    }
+    HasEverFoundData = true; // 执行到这里了，表示有数据可读，标记曾经找到过数据
     
-
-
+    /*通过接收缓冲区的读指针读取一个字节，并根据当前状态进行判断*/
     uint8_t ReadByte = *(cThis->ReadPtr); // 读取一个字节
     switch (state) { // 根据当前状态进行判断
-      case WAIT_FRAME_HEAD_1: // 如果此时是等待帧头1
-        if (ReadByte == (uint8_t)UartStream_FrameHead_1) { // 确实接收到了帧头1
-          state = WAIT_FRAME_HEAD_2; // 进入等待帧头2状态
+      /*如果在等待帧头1状态，接收到了正确的帧头1，则切换下一个状态：等待帧头2*/
+      case UartStream_ParseState_WaitFrameHead1: // 如果此时是等待帧头1
+        if (ReadByte == UartStream_FrameHead_1) { // 确实接收到了帧头1
+          state = UartStream_ParseState_WaitFrameHead2; // 进入等待帧头2状态
           tempHead1 = ReadByte; // 保存帧头1
         } else { // 接收到的不是帧头1
-          state = WAIT_FRAME_HEAD_1; // 重新进入等待帧头1状态
+          state = UartStream_ParseState_WaitFrameHead1; // 重新进入等待帧头1状态
           tempHead1 = 0; // 清空帧头1
           tempHead2 = 0; // 清空帧头2
           tempLen = 0; // 清空数据长度
           tempCrc = 0; // 清空校验和
-          // 打个Tip，记得在这也加个超时判断，防止死循环
         }
         break;
-        
-      case WAIT_FRAME_HEAD_2: // 如果此时是等待帧头2
-        if (ReadByte == (uint8_t)UartStream_FrameHead_2_Req // 确实是接收到了请求帧的帧头2
-         || ReadByte == (uint8_t)UartStream_FrameHead_2_Res // 确实是接收到了响应帧的帧头2
-         || ReadByte == (uint8_t)UartStream_FrameHead_2_Evt // 确实是接收到了事件帧的帧头2
-        ) { // 确实接收到了帧头2
-          state = WAIT_PAYLOAD_LEN; // 进入等待数据长度状态
+      
+      /*如果在等待帧头2状态，接收到了正确的帧头2，则切换下一个状态：等待数据长度*/
+      case UartStream_ParseState_WaitFrameHead2: // 如果此时是等待帧头2
+        if ( ReadByte == UartStream_FrameHead_2_Req // 确实是接收到了请求帧的帧头2
+          || ReadByte == UartStream_FrameHead_2_Res // 确实是接收到了响应帧的帧头2
+          || ReadByte == UartStream_FrameHead_2_Evt ) { // 确实是接收到了事件帧的帧头2
+          state = UartStream_ParseState_WaitPayloadLen; // 进入等待数据长度状态
           tempHead2 = ReadByte; // 保存帧头2
           FrameData[0] = tempHead1; // 保存帧头1到FrameData
           FrameData[1] = tempHead2; // 保存帧头2到FrameData
         } else { // 接收到的不是帧头2
-          state = WAIT_FRAME_HEAD_1; // 重新进入等待帧头1状态
+          state = UartStream_ParseState_WaitFrameHead1; // 重新进入等待帧头1状态
           tempHead1 = 0; // 清空帧头1
           tempHead2 = 0; // 清空帧头2
           FrameData[0] = 0; // 清空FrameData[0]
@@ -157,52 +161,51 @@ UartStream_ReadStatus_e UartStream_Read(UartStream_t *cThis, uint8_t *FrameData,
         }
         break;
 
-      case WAIT_PAYLOAD_LEN: // 如果此时是等待数据长度
-        tempLen |= ReadByte << ((3- LenCnt) * 8); // 保存数据长度
+      /*如果此时是等待数据长度，接收到了数据长度，则切换下一个状态：等待数据*/
+      case UartStream_ParseState_WaitPayloadLen: // 如果此时是等待数据长度
+        tempLen |= ReadByte << ((3-LenCnt)*8); // 保存数据长度
         FrameData[2+LenCnt] = ReadByte; // 保存数据长度到FrameData[2~5]
         LenCnt++; // 数据长度计数器自增1
         if (LenCnt >= 4) { // 数据长度计数器达到4，表示数据长度已经接收完毕
-          state = WAIT_PAYLOAD_DATA; // 进入等待数据状态
+          state = UartStream_ParseState_WaitPayloadData; // 进入等待数据状态
         }
         break;
 
-      case WAIT_PAYLOAD_DATA: // 如果此时是等待数据
+      /*如果此时是等待数据，接收到了数据，则切换下一个状态：等待校验和*/
+      case UartStream_ParseState_WaitPayloadData: // 如果此时是等待数据
         FrameData[6+DataCnt] = ReadByte; // 保存数据到FrameData[6~]
         DataCnt++; // 数据计数器自增1
         if (DataCnt >= tempLen) { // 数据计数器达到数据长度，表示数据已经接收完毕
-          state = WAIT_CRC_CHECKSUM; // 进入等待校验和状态
+          state = UartStream_ParseState_WaitCrcCheckSum; // 进入等待校验和状态
         }
         break;
 
-      case WAIT_CRC_CHECKSUM: // 如果此时是等待校验和
-        tempCrc |= ReadByte << ((1- CrcCnt) * 8); // 保存校验和
+      /*如果此时是等待校验和，接收到了校验和，则恢复到初始状态：等待帧头1*/
+      case UartStream_ParseState_WaitCrcCheckSum: // 如果此时是等待校验和
+        tempCrc |= ReadByte << ((1-CrcCnt)*8); // 保存校验和
         FrameData[6+tempLen+CrcCnt] = ReadByte; // 保存校验和到FrameData[6+len~]
         CrcCnt++; // 校验和计数器自增1
         if (CrcCnt >= 2) { // 校验和计数器达到2，表示校验和已经接收完毕
-          state = WAIT_FRAME_HEAD_1; // 重新进入等待帧头1状态
-          if (tempCrc == UartStream_CRC16Cal(FrameData, 6+tempLen)) { // 校验和正确
-            ReadStatus = UartStream_ReadStatus_Successful; // 成功读取一帧数据
-          } else { // 校验和错误
-            ReadStatus = UartStream_ReadStatus_CrcErr; // 校验和错误
-          }
-          ShouldBreakTheInfiniteLoop = true; // 退出循环
+          state = UartStream_ParseState_WaitFrameHead1; // 重新进入等待帧头1状态
+          ReadState = (tempCrc == UartStream_CRC16Cal(FrameData, 6+tempLen)) ? // 判断校验和是否正确
+                      UartStream_ReadState_Successful : // 如果校验和正确，则标记读取成功
+                      UartStream_ReadState_CrcErr ; // 如果校验和不正确，则标记校验和错误
+          ShouldBreakTheInfiniteLoop = true; // 标记退出无限循环
         }
         break;
         
       default: break;
     }
 
-
-
     cThis->ReadPtr++; // 读取指针自增1
     if (cThis->ReadPtr >= (cThis->RecvBuffer+UART_STREAM_RECV_BUFFER_SIZE)) { // 读取指针已经到达接收缓冲区的末尾
       cThis->ReadPtr = cThis->RecvBuffer; // 读取指针回到接收缓冲区的起始位置
     }
-    
+
     if (ShouldBreakTheInfiniteLoop) { // 如果需要退出循环
       break; // 退出循环
     }
   }
 
-  return ReadStatus;
+  return ReadState;
 }

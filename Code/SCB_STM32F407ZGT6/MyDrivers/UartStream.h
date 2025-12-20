@@ -26,14 +26,22 @@ typedef enum {
 } UartStream_FrameHead_e;
 
 typedef enum {
-  UartStream_ReadStatus_None = 0, // 一点儿数据都没读到，超时了
-  UartStream_ReadStatus_CrcErr = 1, // 完整读到了数据，但CRC校验错误
-  UartStream_ReadStatus_Timeout = 2, // 读了一部分数据，但中途超时退出了
-  UartStream_ReadStatus_Overflow = 3, // 读了一部分数据，但接收缓冲区溢出了
-  UartStream_ReadStatus_Successful = 4, // 完整读到了数据，CRC校验也通过了
-} UartStream_ReadStatus_e;
+  UartStream_ParseState_WaitFrameHead1, // 等待帧头1
+  UartStream_ParseState_WaitFrameHead2, // 等待帧头2
+  UartStream_ParseState_WaitPayloadLen, // 等待数据长度
+  UartStream_ParseState_WaitPayloadData,// 等待数据
+  UartStream_ParseState_WaitCrcCheckSum, // 等待校验和
+  UartStream_ParseState_FrameOverflow, // 帧溢出
+} UartStream_ParseState_e;
 
-#define UART_STREAM_RECV_BUFFER_SIZE  512
+typedef enum {
+  UartStream_ReadState_None, // 一点儿数据都没读到，超时了
+  UartStream_ReadState_CrcErr, // 完整读到了数据，但CRC校验错误
+  UartStream_ReadState_Timeout, // 读了一部分数据，但中途超时退出了
+  UartStream_ReadState_Successful, // 完整读到了数据，CRC校验也通过了
+} UartStream_ReadState_e;
+
+#define UART_STREAM_RECV_BUFFER_SIZE 64
 
 typedef struct {
   UART_HandleTypeDef *huart;
@@ -46,6 +54,6 @@ uint16_t UartStream_CRC16Cal(const uint8_t *bytes, uint32_t len);
 
 void UartStream_Init(UartStream_t *cThis, UART_HandleTypeDef *huart);
 void UartStream_FuncCalled_InUartRecvInterrupt(UartStream_t *cThis);
-UartStream_ReadStatus_e UartStream_Read(UartStream_t *cThis, uint8_t *FrameData, uint32_t Timeout);
+UartStream_ReadState_e UartStream_Read(UartStream_t *cThis, uint8_t *FrameData, uint32_t Timeout);
 
 #endif
