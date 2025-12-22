@@ -17,6 +17,7 @@
 //   - 有效数据部分
 // # 最后2个字节
 //   - 从第一个字节开始，到有效数据的最后一个字节，所有字节的CRC16校验码，大端顺序
+// （都是以正确的两个帧头、数据长度，这两部分来判定一帧数据的完整性的。）
 
 typedef enum {
   UartStream_FrameHead_1 = 0x53, // 帧头1
@@ -44,7 +45,7 @@ typedef enum {
 #define UART_STREAM_RECV_BUFFER_SIZE 64
 
 typedef struct {
-  UART_HandleTypeDef *huart;
+  UART_HandleTypeDef *huart; // 串口句柄
   uint8_t RecvBuffer[UART_STREAM_RECV_BUFFER_SIZE];
   uint8_t *RecvPtr; // 接收指针，指向当前接收字节的位置
   uint8_t *ReadPtr; // 读取指针，指向当前读取字节的位置

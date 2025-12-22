@@ -69,7 +69,7 @@ void UartStream_Init(UartStream_t *cThis, UART_HandleTypeDef *huart) {
 }
 
 /**
- * @brief  在UART接收中断中调用的函数，用于处理接收到的字节。
+ * @brief  在UART接收中断中调用的函数，用于将接收到的字节压入环形缓冲区
  * @param  cThis UartStream对象指针
  * @return None
  */
@@ -90,10 +90,10 @@ void UartStream_FuncCalled_InUartRecvInterrupt(UartStream_t *cThis) {
  * @param  RecvSizeMax 接收的最大长度
  * @param  Timeout 超时时间
  * @return UartStream_ReadState_e枚举类型
- *   @arg UartStream_ReadState_None 一点儿数据都没读到，超时了（已设置）
- *   @arg UartStream_ReadState_CrcErr 完整读到了数据，但CRC校验错误（已设置）
- *   @arg UartStream_ReadState_Timeout 读了一部分数据，但中途超时退出了（已设置）
- *   @arg UartStream_ReadState_Successful 完整读到了数据，CRC校验也通过了（已设置）
+ *   @arg UartStream_ReadState_None 一点儿数据都没读到，超时了
+ *   @arg UartStream_ReadState_CrcErr 完整读到了数据，但CRC校验错误
+ *   @arg UartStream_ReadState_Timeout 读了一部分数据，但中途超时退出了
+ *   @arg UartStream_ReadState_Successful 完整读到了数据，CRC校验也通过了
  */
 UartStream_ReadState_e UartStream_Read(UartStream_t *cThis, uint8_t *FrameData, uint32_t Timeout) {
   UartStream_ParseState_e state = UartStream_ParseState_WaitFrameHead1;
@@ -101,7 +101,7 @@ UartStream_ReadState_e UartStream_Read(UartStream_t *cThis, uint8_t *FrameData, 
   bool HasEverFoundData = false; // 是否曾经找到过数据
                                  // - 如果没找到过数据就直接退出了的话，返回的是UartStream_ReadState_None
                                  // - 如果找到过数据但中途超时退出了，返回的是UartStream_ReadState_Timeout
-  bool ShouldBreakTheInfiniteLoop = false;
+  bool ShouldBreakTheInfiniteLoop = false; // 是否应该跳出无限循环，如果置true的话，则会跳出while(1)循环
 
   uint8_t tempHead1 = 0; // 用来暂存帧头1
   uint8_t tempHead2 = 0; // 用来暂存帧头2
@@ -121,7 +121,7 @@ UartStream_ReadState_e UartStream_Read(UartStream_t *cThis, uint8_t *FrameData, 
       if (HAL_GetTick()-TimeMark >= Timeout) { // 超时没检测到数据可读
         /*如果之前曾经找到过数据，则表示中途超时，否则表示超时读取*/
         ReadState = HasEverFoundData ? UartStream_ReadState_Timeout : UartStream_ReadState_None;
-        return ReadState; // 受不了这气，直接return超时读取，跳出无限循环
+        return ReadState; // 受不了这气，直接return超时读取，退出整个函数，也不用再继续往下执行，包括读指针自增
       }
     }
     HasEverFoundData = true; // 执行到这里了，表示有数据可读，标记曾经找到过数据

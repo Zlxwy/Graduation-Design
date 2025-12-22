@@ -16,10 +16,7 @@ void MainCmnctTaskFunc(void *argument) {
 
   while (true) {
     UartStream_ReadState_e status =
-      UartStream_Read(&gMainCmnctStream,
-        gMainCmnctBuffer,
-        pdMS_TO_TICKS(2000)
-      ); // 读取主通信流对象
+      UartStream_Read(&gMainCmnctStream, gMainCmnctBuffer, /*pdMS_TO_TICKS(2000)*/portMAX_DELAY); // 读取主通信流对象
 
     switch (status) {
       case UartStream_ReadState_None: // 一点儿数据都没读到，超时了

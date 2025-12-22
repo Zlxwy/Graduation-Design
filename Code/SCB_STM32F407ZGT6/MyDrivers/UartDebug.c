@@ -3,8 +3,8 @@
 /**
  * @brief  串口发送一个字节，阻塞方式。
  * @note   等待发送缓冲区为空，再发送。
- * @param  huart: USART handle
- * @param  abyte: 待发送的字节
+ * @param  huart USART handle
+ * @param  abyte 待发送的字节
  * @retval None
  */
 void uart_send_byte_blocking(UART_HandleTypeDef *huart, uint8_t abyte) {
@@ -16,9 +16,9 @@ void uart_send_byte_blocking(UART_HandleTypeDef *huart, uint8_t abyte) {
  * @brief  串口发送一个字节数组，阻塞方式。
  * @note   等待发送缓冲区为空，再发送。
  * @attention 这个函数可以发送带有'\0'(0x00)的字节串
- * @param  huart: USART handle
- * @param  array: 待发送的字节数组
- * @param  len: 待发送的字节数组长度
+ * @param  huart USART handle
+ * @param  array 待发送的字节数组
+ * @param  len 待发送的字节数组长度
  * @retval None
  */
 void uart_send_array(UART_HandleTypeDef *huart, uint8_t *array, size_t len) {
@@ -31,8 +31,8 @@ void uart_send_array(UART_HandleTypeDef *huart, uint8_t *array, size_t len) {
  * @brief  串口发送一个字符串，阻塞方式。
  * @note   等待发送缓冲区为空，再发送。
  * @attention 这个函数不可以发送带有'\0'(0x00)的字节串
- * @param  huart: USART handle
- * @param  string: 待发送的字符串
+ * @param  huart USART handle
+ * @param  string 待发送的字符串
  * @retval None
  */
 void uart_send_string(UART_HandleTypeDef *huart, char *string) {
@@ -43,9 +43,9 @@ void uart_send_string(UART_HandleTypeDef *huart, char *string) {
  * @brief  串口printf函数，用于向串口发送格式化字符串信息。
  * @note   最大长度为256字节。
  * @attention 这个函数不可以发送带有'\0'(0x00)的字节串
- * @param  huart: USART handle
- * @param  format: format string
- * @param  ...: arguments list
+ * @param  huart USART handle
+ * @param  format format string
+ * @param  ... arguments list
  * @retval None
  */
 #define USART_DATALEN_MAX  256
