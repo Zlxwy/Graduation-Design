@@ -142,7 +142,7 @@ UartStream_ReadState_e UartStream_Read(UartStream_t *cThis, uint8_t *FrameData, 
           tempCrc = 0; // 清空校验和
         }
         break;
-      
+
       /*如果在等待帧头2状态，接收到了正确的帧头2，则切换下一个状态：等待数据长度*/
       case UartStream_ParseState_WaitFrameHead2: // 如果此时是等待帧头2
         if ( ReadByte == UartStream_FrameHead_2_Req // 确实是接收到了请求帧的帧头2
@@ -193,7 +193,7 @@ UartStream_ReadState_e UartStream_Read(UartStream_t *cThis, uint8_t *FrameData, 
           ShouldBreakTheInfiniteLoop = true; // 标记退出无限循环
         }
         break;
-        
+
       default: break;
     }
 
