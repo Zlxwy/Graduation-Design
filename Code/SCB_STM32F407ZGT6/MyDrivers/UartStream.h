@@ -42,7 +42,8 @@ typedef enum {
   UartStream_ReadState_Successful, // 完整读到了数据，CRC校验也通过了
 } UartStream_ReadState_e;
 
-#define UART_STREAM_RECV_BUFFER_SIZE 64
+#define UART_STREAM_WRITE_BUFFER_SIZE 256
+#define UART_STREAM_RECV_BUFFER_SIZE 256
 
 typedef struct {
   UART_HandleTypeDef *huart; // 串口句柄
@@ -55,6 +56,7 @@ uint16_t UartStream_CRC16Cal(const uint8_t *bytes, uint32_t len);
 
 void UartStream_Init(UartStream_t *cThis, UART_HandleTypeDef *huart);
 void UartStream_FuncCalled_InUartRecvInterrupt(UartStream_t *cThis);
-UartStream_ReadState_e UartStream_Read(UartStream_t *cThis, uint8_t *FrameData, uint32_t Timeout);
+UartStream_ReadState_e UartStream_Read(UartStream_t *cThis, uint8_t *ReadFrameData, uint32_t Timeout);
+void UartStream_Write(UartStream_t *cThis, UartStream_FrameHead_e fh2, uint8_t *WriteFrameData, uint32_t WriteFrameDataLen);
 
 #endif

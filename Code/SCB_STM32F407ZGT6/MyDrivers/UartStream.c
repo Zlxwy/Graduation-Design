@@ -86,8 +86,7 @@ void UartStream_FuncCalled_InUartRecvInterrupt(UartStream_t *cThis) {
 /**
  * @brief  从UartStream对象中读取数据
  * @param  cThis UartStream对象指针
- * @param  FrameData 接收一帧数据的指针
- * @param  RecvSizeMax 接收的最大长度
+ * @param  ReadFrameData 接收一帧数据的指针
  * @param  Timeout 超时时间
  * @return UartStream_ReadState_e枚举类型
  *   @arg UartStream_ReadState_None 一点儿数据都没读到，超时了
@@ -95,7 +94,7 @@ void UartStream_FuncCalled_InUartRecvInterrupt(UartStream_t *cThis) {
  *   @arg UartStream_ReadState_Timeout 读了一部分数据，但中途超时退出了
  *   @arg UartStream_ReadState_Successful 完整读到了数据，CRC校验也通过了
  */
-UartStream_ReadState_e UartStream_Read(UartStream_t *cThis, uint8_t *FrameData, uint32_t Timeout) {
+UartStream_ReadState_e UartStream_Read(UartStream_t *cThis, uint8_t *ReadFrameData, uint32_t Timeout) {
   UartStream_ParseState_e state = UartStream_ParseState_WaitFrameHead1;
   UartStream_ReadState_e ReadState = UartStream_ReadState_None;
   bool HasEverFoundData = false; // 是否曾经找到过数据
@@ -150,21 +149,21 @@ UartStream_ReadState_e UartStream_Read(UartStream_t *cThis, uint8_t *FrameData, 
           || ReadByte == UartStream_FrameHead_2_Evt ) { // 确实是接收到了事件帧的帧头2
           state = UartStream_ParseState_WaitPayloadLen; // 进入等待数据长度状态
           tempHead2 = ReadByte; // 保存帧头2
-          FrameData[0] = tempHead1; // 保存帧头1到FrameData
-          FrameData[1] = tempHead2; // 保存帧头2到FrameData
+          ReadFrameData[0] = tempHead1; // 保存帧头1到FrameData
+          ReadFrameData[1] = tempHead2; // 保存帧头2到FrameData
         } else { // 接收到的不是帧头2
           state = UartStream_ParseState_WaitFrameHead1; // 重新进入等待帧头1状态
           tempHead1 = 0; // 清空帧头1
           tempHead2 = 0; // 清空帧头2
-          FrameData[0] = 0; // 清空FrameData[0]
-          FrameData[1] = 0; // 清空FrameData[1]
+          ReadFrameData[0] = 0; // 清空FrameData[0]
+          ReadFrameData[1] = 0; // 清空FrameData[1]
         }
         break;
 
       /*如果此时是等待数据长度，接收到了数据长度，则切换下一个状态：等待数据*/
       case UartStream_ParseState_WaitPayloadLen: // 如果此时是等待数据长度
         tempLen |= ReadByte << ((3-LenCnt)*8); // 保存数据长度
-        FrameData[2+LenCnt] = ReadByte; // 保存数据长度到FrameData[2~5]
+        ReadFrameData[2+LenCnt] = ReadByte; // 保存数据长度到FrameData[2~5]
         LenCnt++; // 数据长度计数器自增1
         if (LenCnt >= 4) { // 数据长度计数器达到4，表示数据长度已经接收完毕
           state = UartStream_ParseState_WaitPayloadData; // 进入等待数据状态
@@ -173,7 +172,7 @@ UartStream_ReadState_e UartStream_Read(UartStream_t *cThis, uint8_t *FrameData, 
 
       /*如果此时是等待数据，接收到了数据，则切换下一个状态：等待校验和*/
       case UartStream_ParseState_WaitPayloadData: // 如果此时是等待数据
-        FrameData[6+DataCnt] = ReadByte; // 保存数据到FrameData[6~]
+        ReadFrameData[6+DataCnt] = ReadByte; // 保存数据到FrameData[6~]
         DataCnt++; // 数据计数器自增1
         if (DataCnt >= tempLen) { // 数据计数器达到数据长度，表示数据已经接收完毕
           state = UartStream_ParseState_WaitCrcCheckSum; // 进入等待校验和状态
@@ -183,11 +182,11 @@ UartStream_ReadState_e UartStream_Read(UartStream_t *cThis, uint8_t *FrameData, 
       /*如果此时是等待校验和，接收到了校验和，则恢复到初始状态：等待帧头1*/
       case UartStream_ParseState_WaitCrcCheckSum: // 如果此时是等待校验和
         tempCrc |= ReadByte << ((1-CrcCnt)*8); // 保存校验和
-        FrameData[6+tempLen+CrcCnt] = ReadByte; // 保存校验和到FrameData[6+len~]
+        ReadFrameData[6+tempLen+CrcCnt] = ReadByte; // 保存校验和到FrameData[6+len~]
         CrcCnt++; // 校验和计数器自增1
         if (CrcCnt >= 2) { // 校验和计数器达到2，表示校验和已经接收完毕
           state = UartStream_ParseState_WaitFrameHead1; // 重新进入等待帧头1状态
-          ReadState = (tempCrc == UartStream_CRC16Cal(FrameData, 6+tempLen)) ? // 判断校验和是否正确
+          ReadState = (tempCrc == UartStream_CRC16Cal(ReadFrameData, 6+tempLen)) ? // 判断校验和是否正确
                       UartStream_ReadState_Successful : // 如果校验和正确，则标记读取成功
                       UartStream_ReadState_CrcErr ; // 如果校验和不正确，则标记校验和错误
           ShouldBreakTheInfiniteLoop = true; // 标记退出无限循环
@@ -208,4 +207,47 @@ UartStream_ReadState_e UartStream_Read(UartStream_t *cThis, uint8_t *FrameData, 
   }
 
   return ReadState;
+}
+
+/**
+ * @brief 阻塞发送一个字节
+ * @param cThis 指向UartStream_t结构体的指针
+ * @param abyte 要发送的字节
+ * @return 无
+ */
+void UartStream_SendOneByteBlocking(UartStream_t *cThis, uint8_t abyte) {
+  while ( !__HAL_UART_GET_FLAG(cThis->huart, UART_FLAG_TXE) ); // TX不为空，则持续循环
+  cThis->huart->Instance->DR = abyte; // TX为空了，则跳出以上while循环发送字节
+}
+
+void UartStream_SendBytesBlocking(UartStream_t *cThis, uint8_t *bytes, uint32_t len) {
+  for (uint32_t i = 0; i < len; i++) {
+    UartStream_SendOneByteBlocking(cThis, bytes[i]);
+  }
+}
+
+/**
+ * @brief 以指定数据帧格式发送一帧数据包
+ * @param cThis 指向UartStream_t结构体的指针
+ * @param fh2 是请求帧，还是响应帧，还是事件帧
+ *   @arg UartStream_FrameHead_2_Req 请求帧
+ *   @arg UartStream_FrameHead_2_Res 响应帧
+ *   @arg UartStream_FrameHead_2_Evt 事件帧
+ * @param WriteFrameData 指向要发送的数据包的指针（只是有效数据即可）
+ * @param WriteFrameDataLen 要发送的数据包的长度（有效数据的长度）
+ * @return 无
+ */
+void UartStream_Write(UartStream_t *cThis, UartStream_FrameHead_e fh2, uint8_t *WriteFrameData, uint32_t WriteFrameDataLen) {
+  uint8_t SendBuf[UART_STREAM_WRITE_BUFFER_SIZE];
+  SendBuf[0] = UartStream_FrameHead_1; // 帧头1
+  SendBuf[1] = fh2; // 帧头2
+  SendBuf[2] = (WriteFrameDataLen >> 24) & 0xFF;
+  SendBuf[3] = (WriteFrameDataLen >> 16) & 0xFF;
+  SendBuf[4] = (WriteFrameDataLen >> 8) & 0xFF;
+  SendBuf[5] = (WriteFrameDataLen >> 0) & 0xFF;
+  memcpy(&SendBuf[6], WriteFrameData, WriteFrameDataLen); // 数据
+  uint16_t crc = UartStream_CRC16Cal(SendBuf, 6+WriteFrameDataLen); // 计算校验和
+  SendBuf[6+WriteFrameDataLen] = (crc >> 8) & 0xFF; // 校验和高8位
+  SendBuf[6+WriteFrameDataLen+1] = (crc >> 0) & 0xFF; // 校验和低8位
+  UartStream_SendBytesBlocking(cThis, SendBuf, 6+WriteFrameDataLen+2); // 发送数据包
 }
